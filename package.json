@@ -15,5 +15,12 @@
     "@types/node": "^18.15.3",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.2"
+  },
+  "dependencies": {
+    "@ethereumjs/trie": "^5.0.4",
+    "@ethereumjs/util": "^8.0.5",
+    "abstract-level": "^1.0.3",
+    "level": "^8.0.0",
+    "memory-level": "^1.0.0"
   }
 }
