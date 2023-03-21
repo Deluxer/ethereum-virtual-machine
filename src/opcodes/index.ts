@@ -36,7 +36,14 @@ const Opcodes: {
   0x06: new Instruction(0x06, "MOD", 5, (ctx: ExecutionContext) => {
 
   }),
-  0x0a: new Instruction(0x0a, "EXP", async(ctx: ExecutionContext) => 1, (ctx: ExecutionContext) => {
+  0x0a: new Instruction(0x0a, "EXP", async(ctx: ExecutionContext) => {
+    const staticGas = 10;
+    const exponent = ctx.stack.getAtIndex(2);
+    const sizeOfExponent = arrayify(Number(exponent)).length;
+    const dynamicGas = sizeOfExponent * 50;
+    
+    return staticGas + dynamicGas;
+  }, (ctx: ExecutionContext) => {
     const [a,exponent] = [ctx.stack.pop(), ctx.stack.pop()];
     const result = a ** exponent;
     ctx.stack.push(result);
@@ -68,23 +75,85 @@ const Opcodes: {
   0x50: new Instruction(0x50, "POP", 2, (ctx: ExecutionContext) => {
     ctx.stack.pop();
   }),
-  0x51: new Instruction(0x51, "MLOAD", 3, (ctx: ExecutionContext) => {
-    const offset = ctx.stack.pop();
-    ctx.stack.push(ctx.memory.load(offset));
+  0x51: new Instruction(
+    0x51,
+    "MLOAD",
+    async(ctx: ExecutionContext) => {
+      const offset = ctx.stack.getAtIndex(1);
+      const dynamicGas = ctx.memory.memoryExpansionCost(offset);
+      const staticGas= BigInt(3);
+
+      return Number(staticGas - dynamicGas);
+    }, (ctx: ExecutionContext) => {
+      const offset = ctx.stack.pop();
+      ctx.stack.push(ctx.memory.load(offset));
   }),
-  0x52: new Instruction(0x52, "MSTORE", 3, (ctx: ExecutionContext) => {
+  0x52: new Instruction(
+    0x52,
+    "MSTORE",
+    async(ctx: ExecutionContext) => {
+      const offset = ctx.stack.getAtIndex(1);
+      const dynamicGas = ctx.memory.memoryExpansionCost(offset);
+      const staticGas= BigInt(3);
+
+      return Number(staticGas - dynamicGas);
+    }, (ctx: ExecutionContext) => {
     const [offset, value] = [ctx.stack.pop(), ctx.stack.pop()];
     ctx.memory.store(offset, value);
   }),
-  0x54: new Instruction(0x54, "SLOAD",  async(ctx: ExecutionContext) => 1,  async(ctx: ExecutionContext) => {
-    const key = ctx.stack.pop();
-    const value = await ctx.storage.get(setLengthLeft(bigIntToBuffer(key), 32));
-    ctx.stack.push(value ? bufferToBigInt(value) : BigInt(0));
-  }),
-  0x55: new Instruction(0x55, "SSTORE",  async(ctx: ExecutionContext) => 1, async(ctx: ExecutionContext) => {
-    const [key, value] = [ctx.stack.pop(), ctx.stack.pop()];
+  0x54: new Instruction(
+    0x54,
+    "SLOAD",
+    async(ctx: ExecutionContext) => {
+      const key = ctx.stack.getAtIndex(1);
+      const value = await ctx.storage.get(
+        setLengthLeft(bigIntToBuffer(key), 32)
+      );
 
-    await ctx.storage.put(setLengthLeft(bigIntToBuffer(key), 32), bigIntToBuffer(value));
+      return value === null ? 2100 : 100;
+    },
+    async(ctx: ExecutionContext) => {
+      const key = ctx.stack.pop();
+      const value = await ctx.storage.get(setLengthLeft(bigIntToBuffer(key), 32));
+      ctx.stack.push(value ? bufferToBigInt(value) : BigInt(0));
+  }),
+  0x55: new Instruction(
+    0x55,
+    "SSTORE", 
+    async(ctx: ExecutionContext) => {
+      const [key, value] = [ctx.stack.getAtIndex(1), ctx.stack.getAtIndex(2)];
+      const storedValue = await ctx.storage.get(
+        setLengthLeft(bigIntToBuffer(key), 32)
+      );
+      const currentValue = storedValue 
+        ? bufferToBigInt(storedValue) 
+        : BigInt(0);
+
+      const originalStoredValue = await ctx.storage.get(
+        setLengthLeft(bigIntToBuffer(key), 32)
+      );
+      const originalValue = originalStoredValue 
+        ? bufferToBigInt(originalStoredValue) 
+        : BigInt(0);
+
+      const getDynamicGas = () => {
+        if(value === currentValue) {
+          return 100;
+        }
+      if(currentValue === originalValue) {
+        if(originalValue === BigInt(0)) return 20000;
+        
+          return 29000;
+        }
+
+        return 100;
+      }
+
+      return getDynamicGas() + (storedValue === null ? 2100 : 0);
+    },
+    async(ctx: ExecutionContext) => {
+      const [key, value] = [ctx.stack.pop(), ctx.stack.pop()];
+      await ctx.storage.put(setLengthLeft(bigIntToBuffer(key), 32), bigIntToBuffer(value));
   }),
   0x56: new Instruction(0x56, "JUMP", 8, (ctx: ExecutionContext) => {
     const destination = ctx.stack.pop();
@@ -287,7 +356,13 @@ const Opcodes: {
   0x9f: new Instruction(0x9f, "SWAP16", 3, (ctx: ExecutionContext) => {
     ctx.stack.swap(1, 16);
   }),
-  0xf3: new Instruction(0xf3, "RETURN", 0, (ctx: ExecutionContext) => {
+  0xf3: new Instruction(
+    0xf3,
+    "RETURN",
+    async(ctx: ExecutionContext) => {
+      const offset = ctx.stack.getAtIndex(1);
+      return Number(ctx.memory.memoryExpansionCost(offset));
+  },(ctx: ExecutionContext) => {
     const [offset, size ] = [ctx.stack.pop(), ctx.stack.pop()];
 
     const output = ctx.memory.load(offset);

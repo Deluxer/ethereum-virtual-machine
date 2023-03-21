@@ -27,30 +27,36 @@ class Stack {
     return value;
   }
 
-public duplicate(index: number): void {
-  const value = this.stack[this.toStackIndex(index)];
-  if(value === undefined) throw new IndexOutOfBouns()
+  public duplicate(index: number): void {
+    const value = this.stack[this.toStackIndex(index)];
+    if(value === undefined) throw new IndexOutOfBouns()
 
-  this.stack.push(value);
-}
+    this.stack.push(value);
+  }
 
-public swap(indexA: number, indexB: number): void {
-  const adjustedIndexA = this.toStackIndex(indexA);
-  const adjustedIndexB = this.toStackIndex(indexB);
+  public swap(indexA: number, indexB: number): void {
+    const a = this.getAtIndex(indexA);
+    const b = this.getAtIndex(indexB);
+    
+    this.setAtIndex(indexA, b);
+    this.setAtIndex(indexB, a);
+  }
 
-  const a = this.stack[adjustedIndexA];
-  if(a === undefined) throw new IndexOutOfBouns();
+  private toStackIndex(index: number) {
+    return this.stack.length - index;
+  }
 
-  const b = this.stack[adjustedIndexB];
-  if(b === undefined) throw new IndexOutOfBouns();
+  public getAtIndex(index: number): bigint {
+    const adjustIndex = this.toStackIndex(index);
+    const value = this.stack[adjustIndex];
+    if(value === undefined) throw new IndexOutOfBouns();
 
-  this.stack[adjustedIndexA] = a;
-  this.stack[adjustedIndexB] = b;
-}
+    return value;
+  }
 
-private toStackIndex(index: number) {
-  return this.stack.length - index;
-}
+  public setAtIndex(index: number, value: bigint) {
+    this.stack[this.toStackIndex(index)] = value;
+  }
 
   public print(): void {
     console.log(

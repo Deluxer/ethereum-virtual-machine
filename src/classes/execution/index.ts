@@ -14,6 +14,7 @@ class ExecutionContext {
   private stopped: boolean;
   public output: bigint = BigInt(0);
   public storage: Trie;
+  public readonly originalStorage: Trie;
   public gas: bigint;
 
   constructor(code: string, gas: bigint, storage: Trie) {
@@ -26,6 +27,7 @@ class ExecutionContext {
     this.pc = 0;
     this.stopped = false;
     this.storage = storage;
+    this.originalStorage = storage.copy()
     this.gas = gas;
   }
 

@@ -13,8 +13,13 @@ Features:
 ```
 yarn
 
-yarn dev
 ```
+
+## Commands:
+```
+yarn pvm --code 0x6046600055 --gasLimit 30000
+```
+
 ## Reference
 
 | OPCODE | MNEMONIC |
