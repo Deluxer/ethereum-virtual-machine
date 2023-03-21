@@ -1,7 +1,7 @@
 import Stack from '../stack/index';
 import Memory from '../memory/index';
 import { arrayify, hexlify, isHexString } from '@ethersproject/bytes';
-import { InvalidByteCode, InvalidProgramCounter, UnknowOpcode } from './errors';
+import { InvalidByteCode, InvalidJump, InvalidProgramCounter, OutOfGas, UnknowOpcode } from './errors';
 import Instruction from '../intruction/index';
 import Opcodes from '../../opcodes/index';
 import { Trie } from '@ethereumjs/trie';
@@ -14,8 +14,9 @@ class ExecutionContext {
   private stopped: boolean;
   public output: bigint = BigInt(0);
   public storage: Trie;
+  public gas: bigint;
 
-  constructor(code: string, storage: Trie) {
+  constructor(code: string, gas: bigint, storage: Trie) {
     if(!isHexString(code) || code.length % 2 !== 0)
       throw new InvalidByteCode();
 
@@ -25,6 +26,7 @@ class ExecutionContext {
     this.pc = 0;
     this.stopped = false;
     this.storage = storage;
+    this.gas = gas;
   }
 
   public stop(): void {
@@ -35,9 +37,10 @@ class ExecutionContext {
     while(!this.stopped) {
       const currentPc = this.pc;
       const instruction = this.fetchInstrunction();
-      await instruction.execute(this)
+      const currentAvailableGas = this.gas;
+      const { gasFee } = await instruction.execute(this);
 
-      console.info(`${instruction.name}\t @pc=${currentPc}`);
+      console.info(`${instruction.name}\t @pc=${currentPc}\t gas=${currentAvailableGas}\t cost=${gasFee}`);
 
       this.memory.print()
       this.stack.print();
@@ -48,6 +51,12 @@ class ExecutionContext {
     console.log("Output\t", hexlify(this.output));
     console.log("Root:\t", hexlify(this.storage.root()));
 
+  }
+
+  public useGas(fee: number) {
+    this.gas -= BigInt(fee);
+
+    if(this.gas < 0) throw new OutOfGas()
   }
 
   private fetchInstrunction(): Instruction {
@@ -73,6 +82,15 @@ class ExecutionContext {
     this.pc += bytes;
 
     return values;
+  }
+
+  public jump(destination: bigint): void {
+    if(!this.isValidJump(destination)) throw new InvalidJump();
+    this.pc = Number(destination);
+  }
+
+  private isValidJump(destination: bigint): boolean {
+    return this.code[Number(destination) - 1] === Opcodes[0x5b].opcode;
   }
 }
 

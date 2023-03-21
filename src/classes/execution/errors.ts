@@ -4,4 +4,8 @@ class InvalidProgramCounter extends Error {}
 
 class UnknowOpcode extends Error {};
 
-export {InvalidByteCode, InvalidProgramCounter, UnknowOpcode};
+class InvalidJump extends Error {}
+
+class OutOfGas extends Error {}
+
+export {InvalidByteCode, InvalidProgramCounter, UnknowOpcode, InvalidJump, OutOfGas};
